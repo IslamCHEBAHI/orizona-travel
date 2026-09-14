@@ -1,0 +1,278 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma-postgres"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+/* =====================================================
+   DESTINATIONS
+===================================================== */
+
+model Destination {
+  id          Int                @id @default(autoincrement())
+  name        String
+  slug        String             @unique
+  country     String
+  tag         String?
+  description String
+  coverImage  String?
+  published   Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  images      DestinationImage[]
+  promotions  Promotion[]
+}
+
+
+/* =====================================================
+   IMAGES DESTINATIONS
+===================================================== */
+
+model DestinationImage {
+  id            Int         @id @default(autoincrement())
+  url           String
+  publicId      String?
+  sortOrder     Int         @default(0)
+
+  destinationId Int
+  destination   Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+}
+
+
+/* =====================================================
+   PROMOTIONS
+===================================================== */
+
+model Promotion {
+  id            Int      @id @default(autoincrement())
+
+  title         String
+  slug          String   @unique
+  description   String
+
+  duration      String?
+
+  departureCity String?
+  departureDate DateTime?
+  returnDate    DateTime?
+
+  hotelName     String?
+  hotelStars    Int?
+  boardType     String?
+
+  transport     String?
+  baggage       String?
+
+  price         Int
+  oldPrice      Int?
+  discount      Int?
+
+  availableSeats Int?
+
+  included      String?
+  excluded      String?
+  program       String?
+
+  coverImage    String?
+
+  published     Boolean  @default(true)
+  featured      Boolean  @default(false)
+
+  startDate     DateTime?
+  endDate       DateTime?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  destinationId Int?
+  destination   Destination? @relation(fields: [destinationId], references: [id], onDelete: SetNull)
+
+  images        PromotionImage[]
+}
+
+
+/* =====================================================
+   IMAGES PROMOTIONS
+===================================================== */
+
+model PromotionImage {
+  id          Int       @id @default(autoincrement())
+  url         String
+  publicId    String?
+  sortOrder   Int       @default(0)
+
+  promotionId Int
+  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+}
+
+
+/* =====================================================
+   DESTINATIONS HOTELIERES
+   Exemple : Algérie, Maroc, Égypte
+===================================================== */
+
+model HotelDestination {
+  id           Int      @id @default(autoincrement())
+
+  name         String
+  slug         String   @unique
+
+  description  String?
+
+  coverImage   String?
+  publicId     String?
+
+  published    Boolean  @default(true)
+  featuredHome Boolean  @default(false)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  cities       HotelCity[]
+}
+
+
+/* =====================================================
+   VILLES HOTELIERES
+   Exemple : Alger, Oran, Annaba
+===================================================== */
+
+model HotelCity {
+  id                 Int      @id @default(autoincrement())
+
+  name               String
+  slug               String
+
+  description        String?
+
+  coverImage         String?
+  publicId           String?
+
+  published          Boolean  @default(true)
+  featured           Boolean  @default(false)
+
+  sortOrder          Int      @default(0)
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  hotelDestinationId Int
+  hotelDestination   HotelDestination @relation(fields: [hotelDestinationId], references: [id], onDelete: Cascade)
+
+  hotels             Hotel[]
+
+  @@unique([hotelDestinationId, slug])
+}
+
+
+/* =====================================================
+   HOTELS
+===================================================== */
+
+model Hotel {
+  id             Int      @id @default(autoincrement())
+
+  name           String
+  slug           String   @unique
+
+  description    String
+
+  stars          Int      @default(4)
+
+  price          Int
+  oldPrice       Int?
+
+  coverImage     String?
+
+  published      Boolean  @default(true)
+
+  monthlyOffer   Boolean  @default(false)
+
+  offerStartDate DateTime?
+  offerEndDate   DateTime?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  hotelCityId    Int
+  hotelCity      HotelCity @relation(fields: [hotelCityId], references: [id], onDelete: Cascade)
+
+  images         HotelImage[]
+}
+
+
+/* =====================================================
+   IMAGES HOTELS
+===================================================== */
+
+model HotelImage {
+  id        Int    @id @default(autoincrement())
+
+  url       String
+  publicId  String?
+
+  sortOrder Int    @default(0)
+
+  hotelId   Int
+  hotel     Hotel  @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+}
+
+/* =========================================================
+   ADMINISTRATEURS
+   Comptes autorisés à accéder au back-office
+========================================================= */
+
+model AdminUser {
+  id           Int      @id @default(autoincrement())
+  name         String?
+  email        String   @unique
+  passwordHash String
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+/* =====================================================
+   DEMANDES DE BILLETS
+   Centralisées dans Prisma afin de garder une seule
+   couche d'accès aux données pour tout le projet.
+===================================================== */
+
+model FlightRequest {
+  id             Int      @id @default(autoincrement())
+  reference      String   @unique
+  tripType       String   @default("ROUND_TRIP")
+  origin         String
+  destination    String
+  departureDate  DateTime
+  returnDate     DateTime?
+  adults         Int      @default(1)
+  children       Int      @default(0)
+  infants        Int      @default(0)
+  cabinClass     String   @default("ECONOMY")
+  fullName       String
+  phone          String
+  email          String?
+  flexibleDates  Boolean  @default(false)
+  baggage        String?
+  notes          String?
+  status         String   @default("NEW")
+  adminNotes     String?
+  requestIpHash  String?
+  userAgent      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([departureDate])
+  @@index([requestIpHash, createdAt])
+}
+

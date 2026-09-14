@@ -1,0 +1,17 @@
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+
+/**
+ * Protection complémentaire des mutations admin.
+ * Le proxy protège les pages /admin, mais chaque Server Action sensible
+ * vérifie aussi la session côté serveur (defense in depth).
+ */
+export async function requireAdmin() {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.id) {
+    throw new Error("Accès administrateur requis.");
+  }
+
+  return session;
+}
