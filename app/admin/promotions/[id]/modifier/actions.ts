@@ -31,19 +31,18 @@ export async function updatePromotion(
   await requireAdmin();
 
 
-  const id =
-    Number(formData.get("id"));
+  const id = Number(
+    formData.get("id")
+  );
 
 
   if (!Number.isInteger(id)) {
-    throw new Error(
-      "Promotion invalide."
-    );
+    throw new Error("Promotion invalide.");
   }
 
 
 
-  const currentPromotion =
+  const promotion =
     await prisma.promotion.findUnique({
 
       where:{
@@ -58,12 +57,11 @@ export async function updatePromotion(
 
 
 
-  if (!currentPromotion) {
+  if (!promotion) {
     throw new Error(
       "Promotion introuvable."
     );
   }
-
 
 
 
@@ -103,18 +101,6 @@ export async function updatePromotion(
     );
 
 
-  const startDate =
-    String(
-      formData.get("startDate") ?? ""
-    );
-
-
-  const endDate =
-    String(
-      formData.get("endDate") ?? ""
-    );
-
-
 
   const published =
     formData.get("published") === "on";
@@ -125,49 +111,41 @@ export async function updatePromotion(
 
 
 
-
-  const imagesText =
-    String(
-      formData.get("images") ?? "[]"
-    );
-
-
-
-  const currentImages:
-    {
+  const images =
+    JSON.parse(
+      String(
+        formData.get("images") ?? "[]"
+      )
+    ) as {
       url:string;
       publicId:string;
-    }[] =
-    JSON.parse(imagesText);
+    }[];
 
 
 
+  /*
+    IMAGES SUPPRIMEES
+  */
 
-
-  const oldIds =
-    currentPromotion.images.map(
-      img => img.url
+  const remainingUrls =
+    images.map(
+      image => image.url
     );
 
 
 
-  const keptUrls =
-    currentImages.map(
-      img => img.url
+  const removedImages =
+    promotion.images.filter(
+      image =>
+        !remainingUrls.includes(
+          image.url
+        )
     );
 
 
 
-  const deletedImages =
-    currentPromotion.images.filter(
-      img =>
-        !keptUrls.includes(img.url)
-    );
+  for (const image of removedImages) {
 
-
-
-
-  for (const image of deletedImages) {
 
     await prisma.promotionImage.delete({
       where:{
@@ -189,10 +167,25 @@ export async function updatePromotion(
 
 
 
+
+  /*
+    NOUVELLES IMAGES UNIQUEMENT
+  */
+
+
+  const existingUrls =
+    promotion.images.map(
+      image => image.url
+    );
+
+
+
   const newImages =
-    currentImages.filter(
+    images.filter(
       image =>
-        !oldIds.includes(image.url)
+        !existingUrls.includes(
+          image.url
+        )
     );
 
 
@@ -204,7 +197,7 @@ export async function updatePromotion(
 
 
 
-  const slugExists =
+  const sameSlug =
     await prisma.promotion.findFirst({
 
       where:{
@@ -221,7 +214,7 @@ export async function updatePromotion(
 
 
 
-  if(slugExists){
+  if(sameSlug){
 
     slug =
       `${slug}-${id}`;
@@ -241,11 +234,14 @@ export async function updatePromotion(
 
     discount =
       Math.round(
-        ((oldPrice-price) /
-        oldPrice) * 100
+        ((oldPrice-price)
+        /
+        oldPrice)
+        *100
       );
 
   }
+
 
 
 
@@ -255,6 +251,7 @@ export async function updatePromotion(
     where:{
       id,
     },
+
 
     data:{
 
@@ -280,18 +277,6 @@ export async function updatePromotion(
       discount,
 
 
-      startDate:
-        startDate
-          ? new Date(`${startDate}T00:00:00`)
-          : null,
-
-
-      endDate:
-        endDate
-          ? new Date(`${endDate}T23:59:59`)
-          : null,
-
-
       published,
 
       featured,
@@ -299,8 +284,8 @@ export async function updatePromotion(
 
 
       coverImage:
-        currentImages.length > 0
-          ? currentImages[0].url
+        images.length > 0
+          ? images[0].url
           : null,
 
 
@@ -322,7 +307,6 @@ export async function updatePromotion(
                 index,
 
             })
-
           ),
 
       },
@@ -331,6 +315,7 @@ export async function updatePromotion(
     },
 
   });
+
 
 
 
@@ -350,9 +335,7 @@ export async function updatePromotion(
   );
 
 
-  revalidatePath(
-    "/"
-  );
+  revalidatePath("/");
 
 
 
