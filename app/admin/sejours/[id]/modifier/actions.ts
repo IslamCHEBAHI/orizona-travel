@@ -1,20 +1,12 @@
 "use server";
 
 import { requireAdmin } from "@/lib/admin-auth";
-
 import { prisma } from "@/lib/prisma";
-
-import {
-  uploadCloudinaryImage,
-  deleteCloudinaryImage,
-} from "@/lib/cloudinary";
-
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 
 function createSlug(text: string) {
-
   return text
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -22,14 +14,16 @@ function createSlug(text: string) {
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-
 }
+
 
 
 export async function updateStay(
   formData: FormData
 ) {
+
   await requireAdmin();
+
 
   const id =
     Number(
@@ -44,18 +38,20 @@ export async function updateStay(
   }
 
 
+
   const currentStay =
     await prisma.promotion.findUnique({
 
-      where: {
+      where:{
         id,
       },
 
-      include: {
-        images: true,
+      include:{
+        images:true,
       },
 
     });
+
 
 
   if (!currentStay) {
@@ -63,6 +59,7 @@ export async function updateStay(
       "Séjour introuvable."
     );
   }
+
 
 
   const title =
@@ -83,64 +80,44 @@ export async function updateStay(
     ).trim();
 
 
+
   const destinationId =
     Number(
       formData.get("destinationId")
     );
 
 
-  const departureCity =
+  const imagesText =
     String(
-      formData.get("departureCity") ?? ""
-    ).trim();
+      formData.get("images") ?? "[]"
+    );
 
 
-  const departureDateValue =
-    String(
-      formData.get("departureDate") ?? ""
-    ).trim();
+  let newImages:{
+    url:string;
+    publicId:string;
+  }[] = [];
 
 
-  const returnDateValue =
-    String(
-      formData.get("returnDate") ?? ""
-    ).trim();
+  try {
+
+    newImages =
+      JSON.parse(imagesText);
+
+  } catch {
+
+    throw new Error(
+      "Images invalides."
+    );
+
+  }
 
 
-  const availableSeatsValue =
-    String(
-      formData.get("availableSeats") ?? ""
-    ).trim();
 
-
-  const hotelName =
-    String(
-      formData.get("hotelName") ?? ""
-    ).trim();
-
-
-  const hotelStarsValue =
-    String(
-      formData.get("hotelStars") ?? ""
-    ).trim();
-
-
-  const boardType =
-    String(
-      formData.get("boardType") ?? ""
-    ).trim();
-
-
-  const transport =
-    String(
-      formData.get("transport") ?? ""
-    ).trim();
-
-
-  const baggage =
-    String(
-      formData.get("baggage") ?? ""
-    ).trim();
+  const price =
+    Number(
+      formData.get("price")
+    );
 
 
   const oldPriceValue =
@@ -149,28 +126,12 @@ export async function updateStay(
     ).trim();
 
 
-  const priceValue =
-    String(
-      formData.get("price") ?? ""
-    ).trim();
 
+  const oldPrice =
+    oldPriceValue
+      ? Number(oldPriceValue)
+      : null;
 
-  const program =
-    String(
-      formData.get("program") ?? ""
-    ).trim();
-
-
-  const included =
-    String(
-      formData.get("included") ?? ""
-    ).trim();
-
-
-  const excluded =
-    String(
-      formData.get("excluded") ?? ""
-    ).trim();
 
 
   const published =
@@ -181,92 +142,19 @@ export async function updateStay(
     formData.get("featured") === "on";
 
 
-  if (!title) {
-    throw new Error(
-      "Le titre est obligatoire."
-    );
-  }
-
-
-  if (!description) {
-    throw new Error(
-      "La description est obligatoire."
-    );
-  }
-
-
-  if (!Number.isInteger(destinationId)) {
-    throw new Error(
-      "Destination invalide."
-    );
-  }
-
-
-  const price =
-    Number(priceValue);
-
-
-  if (
-    !Number.isInteger(price) ||
-    price <= 0
-  ) {
-
-    throw new Error(
-      "Prix invalide."
-    );
-
-  }
-
-
-  const oldPrice =
-    oldPriceValue
-      ? Number(oldPriceValue)
-      : null;
-
-
-  const availableSeats =
-    availableSeatsValue
-      ? Number(availableSeatsValue)
-      : null;
-
-
-  const hotelStars =
-    hotelStarsValue
-      ? Number(hotelStarsValue)
-      : null;
-
-
-  let discount:
-    number | null = null;
-
-
-  if (
-    oldPrice &&
-    oldPrice > price
-  ) {
-
-    discount =
-      Math.round(
-        ((oldPrice - price) /
-          oldPrice) *
-          100
-      );
-
-  }
-
 
   let slug =
     createSlug(title);
 
 
+
   const slugExists =
     await prisma.promotion.findFirst({
 
-      where: {
-
+      where:{
         slug,
 
-        NOT: {
+        NOT:{
           id,
         },
 
@@ -275,7 +163,8 @@ export async function updateStay(
     });
 
 
-  if (slugExists) {
+
+  if(slugExists){
 
     slug =
       `${slug}-${id}`;
@@ -283,157 +172,80 @@ export async function updateStay(
   }
 
 
-  const files =
-    formData
-      .getAll("images")
-      .filter(
-        (entry): entry is File =>
-          typeof entry !== "string" &&
-          entry.size > 0
+
+  let discount:number|null = null;
+
+
+  if(
+    oldPrice &&
+    oldPrice > price
+  ){
+
+    discount =
+      Math.round(
+        ((oldPrice-price) /
+        oldPrice) * 100
       );
-
-
-  const uploadedImages: {
-    url: string;
-    publicId: string;
-  }[] = [];
-
-
-  for (const file of files) {
-
-    if (
-      ![
-        "image/jpeg",
-        "image/png",
-        "image/webp",
-      ].includes(file.type)
-    ) {
-
-      throw new Error(
-        `Format non autorisé : ${file.name}`
-      );
-
-    }
-
-
-    if (
-      file.size >
-      4 * 1024 * 1024
-    ) {
-
-      throw new Error(
-        `${file.name} dépasse 4 Mo.`
-      );
-
-    }
-
-
-    const buffer =
-      Buffer.from(
-        await file.arrayBuffer()
-      );
-
-
-    const upload =
-      await uploadCloudinaryImage(
-        buffer,
-        "agence-voyage/sejours"
-      );
-
-
-    uploadedImages.push({
-
-      url:
-        upload.secure_url,
-
-      publicId:
-        upload.public_id,
-
-    });
 
   }
+
 
 
   const nextSortOrder =
     currentStay.images.length;
 
 
+
   await prisma.promotion.update({
 
-    where: {
+    where:{
       id,
     },
 
-    data: {
+
+    data:{
+
 
       title,
+
       slug,
+
       description,
+
 
       duration:
         duration || null,
 
+
       destinationId,
 
-      departureCity:
-        departureCity || null,
-
-      departureDate:
-        departureDateValue
-          ? new Date(
-              `${departureDateValue}T00:00:00`
-            )
-          : null,
-
-      returnDate:
-        returnDateValue
-          ? new Date(
-              `${returnDateValue}T00:00:00`
-            )
-          : null,
-
-      availableSeats,
-
-      hotelName:
-        hotelName || null,
-
-      hotelStars,
-
-      boardType:
-        boardType || null,
-
-      transport:
-        transport || null,
-
-      baggage:
-        baggage || null,
 
       oldPrice,
+
       price,
+
       discount,
 
-      program:
-        program || null,
-
-      included:
-        included || null,
-
-      excluded:
-        excluded || null,
 
       published,
+
       featured,
+
+
 
       coverImage:
         currentStay.coverImage ??
-        uploadedImages[0]?.url ??
+        newImages[0]?.url ??
         null,
 
-      images: {
+
+
+      images:{
 
         create:
-          uploadedImages.map(
-            (image, index) => ({
+
+          newImages.map(
+            (image,index)=>({
 
               url:
                 image.url,
@@ -442,34 +254,34 @@ export async function updateStay(
                 image.publicId,
 
               sortOrder:
-                nextSortOrder +
-                index,
+                nextSortOrder + index,
 
             })
           ),
 
       },
 
+
     },
 
   });
+
 
 
   revalidatePath(
     "/admin/sejours"
   );
 
+
   revalidatePath(
     `/admin/sejours/${id}/modifier`
   );
+
 
   revalidatePath(
     "/sejours"
   );
 
-  revalidatePath(
-    `/sejours/${slug}`
-  );
 
   revalidatePath(
     "/"
@@ -479,4 +291,5 @@ export async function updateStay(
   redirect(
     "/admin/sejours"
   );
+
 }
