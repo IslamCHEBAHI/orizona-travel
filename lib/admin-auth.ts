@@ -11,6 +11,7 @@ import { prisma } from "@/lib/prisma";
  */
 export async function requireAdmin() {
   const session = await getServerSession(authOptions);
+  console.log("ADMIN SESSION:", session);
 
   let userId = session?.user?.id ? String(session.user.id) : null;
   let email = session?.user?.email ?? null;
@@ -23,6 +24,7 @@ export async function requireAdmin() {
       } as any,
       secret: process.env.NEXTAUTH_SECRET,
     });
+    console.log("ADMIN TOKEN:", token);
 
     if (token?.id) {
       userId = String(token.id);
