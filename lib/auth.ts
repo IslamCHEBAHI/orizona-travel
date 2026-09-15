@@ -6,20 +6,10 @@ import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
 
 export const authOptions: NextAuthOptions = {
-  cookies: {
-    sessionToken: {
-      name:
-        process.env.NODE_ENV === "production"
-          ? "__Secure-next-auth.session-token"
-          : "next-auth.session-token",
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: process.env.NODE_ENV === "production",
-      },
-    },
-  },
+  secret: process.env.NEXTAUTH_SECRET,
+
+  useSecureCookies: process.env.NODE_ENV === "production",
+
   session: {
     strategy: "jwt",
   },
@@ -48,9 +38,7 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        const email = credentials.email
-          .trim()
-          .toLowerCase();
+        const email = credentials.email.trim().toLowerCase();
 
         const admin = await prisma.adminUser.findUnique({
           where: {
@@ -66,9 +54,6 @@ export const authOptions: NextAuthOptions = {
           credentials.password,
           admin.passwordHash
         );
-
-        console.log("ADMIN:", admin.email);
-        console.log("PASSWORD VALID:", passwordValid);
 
         if (!passwordValid) {
           return null;
@@ -105,8 +90,23 @@ export const authOptions: NextAuthOptions = {
     },
   },
 
-  secret: process.env.NEXTAUTH_SECRET,
+  cookies: {
+    sessionToken: {
+      name:
+        process.env.NODE_ENV === "production"
+          ? "__Secure-next-auth.session-token"
+          : "next-auth.session-token",
+
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+      },
+    },
+  },
 };
+
 export async function getAuthSession() {
   return await getServerSession(authOptions);
 }
