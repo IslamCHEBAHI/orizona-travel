@@ -25,6 +25,8 @@ type Props = {
   title?: string;
 
   initialPhotos?: PhotoItem[];
+
+  initialCover?: string | null;
 };
 
 
@@ -34,6 +36,8 @@ export default function AdminPhotoUpload({
   title = "Ajouter les photos",
 
   initialPhotos = [],
+
+  initialCover = null,
 
 }: Props) {
 
@@ -46,9 +50,18 @@ export default function AdminPhotoUpload({
 
   const [coverId, setCoverId] =
     useState<string | null>(
-      initialPhotos.length > 0
-        ? initialPhotos[0].id
-        : null
+
+      initialCover
+
+        ? initialPhotos.find(
+            (photo) =>
+              photo.url === initialCover
+          )?.id ?? null
+
+        : initialPhotos.length > 0
+          ? initialPhotos[0].id
+          : null
+
     );
 
 

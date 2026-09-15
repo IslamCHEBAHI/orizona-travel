@@ -15,24 +15,19 @@ export default async function EditPromotionPage({
   params,
 }: {
   params: Promise<{
-    id:string;
+    id: string;
   }>;
 }) {
 
 
-  const { id } =
-    await params;
+  const { id } = await params;
 
 
-  const promotionId =
-    Number(id);
+  const promotionId = Number(id);
 
 
-
-  if(!Number.isInteger(promotionId)){
-
+  if (!Number.isInteger(promotionId)) {
     notFound();
-
   }
 
 
@@ -40,26 +35,26 @@ export default async function EditPromotionPage({
   const promotion =
     await prisma.promotion.findUnique({
 
-      where:{
-        id:promotionId,
+      where: {
+        id: promotionId,
       },
 
-      include:{
+      include: {
+        images: {
+          orderBy: {
+            sortOrder: "asc",
+          },
+        },
 
-        destination:true,
-
-        images:true,
-
+        destination: true,
       },
 
     });
 
 
 
-  if(!promotion){
-
+  if (!promotion) {
     notFound();
-
   }
 
 
@@ -67,16 +62,15 @@ export default async function EditPromotionPage({
   const destinations =
     await prisma.destination.findMany({
 
-      where:{
-        published:true,
+      where: {
+        published: true,
       },
 
-      orderBy:{
-        name:"asc",
+      orderBy: {
+        name: "asc",
       },
 
     });
-
 
 
 
@@ -119,6 +113,7 @@ export default async function EditPromotionPage({
           </p>
 
 
+
         </div>
 
 
@@ -148,6 +143,7 @@ export default async function EditPromotionPage({
 
 
 
+
           <section className="admin-form-section">
 
 
@@ -164,6 +160,7 @@ export default async function EditPromotionPage({
                   Informations générales
                 </h2>
 
+
               </div>
 
 
@@ -176,7 +173,7 @@ export default async function EditPromotionPage({
             <label>
 
               <span>
-                Titre *
+                Titre de la promotion *
               </span>
 
 
@@ -193,7 +190,6 @@ export default async function EditPromotionPage({
                 required
 
               />
-
 
             </label>
 
@@ -225,12 +221,13 @@ export default async function EditPromotionPage({
 
 
                   <option value="">
-                    Sélectionner
+                    Sélectionner une destination
                   </option>
 
 
+
                   {destinations.map(
-                    destination => (
+                    (destination)=>(
 
                       <option
 
@@ -250,6 +247,7 @@ export default async function EditPromotionPage({
 
                     )
                   )}
+
 
 
                 </select>
@@ -349,8 +347,8 @@ export default async function EditPromotionPage({
 
 
 
-            <div className="admin-fields-grid">
 
+            <div className="admin-fields-grid">
 
 
               <label>
@@ -371,6 +369,7 @@ export default async function EditPromotionPage({
                   }
 
                 />
+
 
               </label>
 
@@ -399,6 +398,7 @@ export default async function EditPromotionPage({
 
                 />
 
+
               </label>
 
 
@@ -406,6 +406,7 @@ export default async function EditPromotionPage({
 
 
           </section>
+
 
 
 
@@ -455,16 +456,19 @@ export default async function EditPromotionPage({
                   name="startDate"
 
                   defaultValue={
+
                     promotion.startDate
-                    ?
-                    promotion.startDate
-                    .toISOString()
-                    .slice(0,10)
-                    :
-                    ""
+
+                    ? promotion.startDate
+                      .toISOString()
+                      .slice(0,10)
+
+                    : ""
+
                   }
 
                 />
+
 
               </label>
 
@@ -486,13 +490,15 @@ export default async function EditPromotionPage({
                   name="endDate"
 
                   defaultValue={
+
                     promotion.endDate
-                    ?
-                    promotion.endDate
-                    .toISOString()
-                    .slice(0,10)
-                    :
-                    ""
+
+                    ? promotion.endDate
+                      .toISOString()
+                      .slice(0,10)
+
+                    : ""
+
                   }
 
                 />
@@ -505,6 +511,7 @@ export default async function EditPromotionPage({
 
 
           </section>
+
 
 
 
@@ -524,7 +531,7 @@ export default async function EditPromotionPage({
               <div>
 
                 <h2>
-                  Photos
+                  Galerie photos
                 </h2>
 
 
@@ -536,9 +543,32 @@ export default async function EditPromotionPage({
 
 
 
+
             <AdminPhotoUpload
 
-              title="Ajouter des photos"
+              title="Ajouter ou modifier les photos"
+
+              initialPhotos={
+
+                promotion.images.map(
+                  (image)=>({
+
+                    id: String(image.id),
+
+                    url: image.url,
+
+                    publicId:
+                      image.publicId ?? "",
+
+                  })
+                )
+
+              }
+
+
+              initialCover={
+                promotion.coverImage
+              }
 
             />
 
@@ -550,7 +580,9 @@ export default async function EditPromotionPage({
 
 
 
+
           <section className="admin-publish-section">
+
 
 
             <label className="publish-checkbox">
@@ -574,6 +606,7 @@ export default async function EditPromotionPage({
                 <strong>
                   Publier
                 </strong>
+
 
               </div>
 
@@ -603,14 +636,14 @@ export default async function EditPromotionPage({
               <div>
 
                 <strong>
-                  Afficher accueil
+                  Afficher sur l'accueil
                 </strong>
+
 
               </div>
 
 
             </label>
-
 
 
 
