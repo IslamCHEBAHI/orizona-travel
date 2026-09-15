@@ -1,20 +1,12 @@
 "use server";
 
 import { requireAdmin } from "@/lib/admin-auth";
-
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-
 import { prisma } from "@/lib/prisma";
-
-import {
-  deleteCloudinaryImage,
-  uploadCloudinaryImage,
-} from "@/lib/cloudinary";
 
 
 function createSlug(value: string) {
-
   return value
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -22,19 +14,15 @@ function createSlug(value: string) {
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-
 }
 
 
-async function getUniqueSlug(
-  name: string
-) {
+async function getUniqueSlug(name: string) {
 
   const baseSlug =
     createSlug(name) || "hotel";
 
   let slug = baseSlug;
-
   let counter = 2;
 
 
@@ -46,9 +34,7 @@ async function getUniqueSlug(
     })
   ) {
 
-    slug =
-      `${baseSlug}-${counter}`;
-
+    slug = `${baseSlug}-${counter}`;
     counter++;
 
   }
@@ -58,10 +44,13 @@ async function getUniqueSlug(
 }
 
 
+
 export async function createHotel(
   formData: FormData
 ) {
+
   await requireAdmin();
+
 
   const name =
     String(
@@ -119,14 +108,32 @@ export async function createHotel(
     );
 
 
-  const files =
-    formData
-      .getAll("images")
-      .filter(
-        (item): item is File =>
-          item instanceof File &&
-          item.size > 0
-      );
+
+  const imagesText =
+    String(
+      formData.get("images") ?? "[]"
+    );
+
+
+  let uploadedImages: {
+    url: string;
+    publicId: string;
+  }[] = [];
+
+
+  try {
+
+    uploadedImages =
+      JSON.parse(imagesText);
+
+  } catch {
+
+    throw new Error(
+      "Images invalides."
+    );
+
+  }
+
 
 
   if (!name) {
@@ -146,9 +153,11 @@ export async function createHotel(
   if (
     !Number.isInteger(hotelCityId)
   ) {
+
     throw new Error(
       "La ville sélectionnée est invalide."
     );
+
   }
 
 
@@ -157,9 +166,11 @@ export async function createHotel(
     stars < 1 ||
     stars > 5
   ) {
+
     throw new Error(
       "Le classement doit être compris entre 1 et 5 étoiles."
     );
+
   }
 
 
@@ -167,17 +178,24 @@ export async function createHotel(
     !Number.isFinite(price) ||
     price <= 0
   ) {
+
     throw new Error(
       "Le prix est invalide."
     );
+
   }
 
 
-  if (files.length > 8) {
+  if (
+    uploadedImages.length > 8
+  ) {
+
     throw new Error(
       "Maximum 8 photos par hôtel."
     );
+
   }
+
 
 
   const city =
@@ -194,170 +212,99 @@ export async function createHotel(
     });
 
 
+
   if (!city) {
+
     throw new Error(
       "Ville introuvable."
     );
+
   }
+
 
 
   const slug =
     await getUniqueSlug(name);
 
 
-  const uploadedImages: {
-    url: string;
-    publicId: string;
-  }[] = [];
+
+  const coverIndex =
+    Number.isInteger(
+      requestedCoverIndex
+    ) &&
+    requestedCoverIndex >= 0 &&
+    requestedCoverIndex < uploadedImages.length
+      ? requestedCoverIndex
+      : 0;
 
 
-  try {
 
-    for (const file of files) {
+  await prisma.hotel.create({
 
-      const allowedTypes = [
-        "image/jpeg",
-        "image/png",
-        "image/webp",
-      ];
+    data: {
 
+      name,
 
-      if (
-        !allowedTypes.includes(
-          file.type
-        )
-      ) {
-        throw new Error(
-          "Les photos doivent être JPEG, PNG ou WEBP."
-        );
-      }
+      slug,
 
+      description,
 
-      if (
-        file.size >
-        4 * 1024 * 1024
-      ) {
-        throw new Error(
-          "Chaque photo doit faire moins de 4 Mo."
-        );
-      }
+      stars,
+
+      price,
+
+      oldPrice,
+
+      published,
+
+      monthlyOffer,
+
+      hotelCityId,
 
 
-      const buffer =
-        Buffer.from(
-          await file.arrayBuffer()
-        );
+      coverImage:
+        uploadedImages.length > 0
+          ? uploadedImages[coverIndex].url
+          : null,
 
 
-      const result =
-        await uploadCloudinaryImage(
-          buffer,
-          "agence-voyage/hotels"
-        );
+      images: {
 
+        create:
+          uploadedImages.map(
+            (image, index) => ({
 
-      uploadedImages.push({
-        url: result.secure_url,
-        publicId: result.public_id,
-      });
+              url: image.url,
 
-    }
+              publicId: image.publicId,
 
+              sortOrder: index,
 
-    const coverIndex =
-      Number.isInteger(
-        requestedCoverIndex
-      ) &&
-      requestedCoverIndex >= 0 &&
-      requestedCoverIndex <
-        uploadedImages.length
-        ? requestedCoverIndex
-        : 0;
-
-
-    await prisma.hotel.create({
-
-      data: {
-
-        name,
-
-        slug,
-
-        description,
-
-        stars,
-
-        price,
-
-        oldPrice,
-
-        published,
-
-        monthlyOffer,
-
-        hotelCityId,
-
-        coverImage:
-          uploadedImages.length > 0
-            ? uploadedImages[
-                coverIndex
-              ].url
-            : null,
-
-        images: {
-
-          create:
-            uploadedImages.map(
-              (image, index) => ({
-
-                url:
-                  image.url,
-
-                publicId:
-                  image.publicId,
-
-                sortOrder:
-                  index,
-
-              })
-            ),
-
-        },
+            })
+          ),
 
       },
 
-    });
+    },
 
+  });
 
-  } catch (error) {
-
-    for (
-      const image
-      of uploadedImages
-    ) {
-
-      await deleteCloudinaryImage(
-        image.publicId
-      ).catch(() => {});
-
-    }
-
-
-    throw error;
-  }
 
 
   revalidatePath(
     "/admin/hotels"
   );
 
+
   revalidatePath(
     `/admin/hotels/destinations/${city.hotelDestinationId}`
   );
 
+
   revalidatePath(
     `/hotels/${city.hotelDestination.slug}/${city.slug}`
   );
+
 
   revalidatePath(
     "/"

@@ -7,6 +7,8 @@ const securityHeaders = [
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
 ];
 
+
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
 
