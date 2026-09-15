@@ -406,19 +406,15 @@ export default function AdminPhotoUpload({
 
 
       <input
-
         type="hidden"
-
         name="images"
-
-        value={
-          JSON.stringify(
-            photos
-          )
-        }
-
+        value={JSON.stringify(
+          photos.map((photo) => ({
+            url: photo.url,
+            publicId: photo.publicId,
+          }))
+        )}
         readOnly
-
       />
 
 
