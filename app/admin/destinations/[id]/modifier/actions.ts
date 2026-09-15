@@ -1,12 +1,13 @@
 "use server";
 
 import { requireAdmin } from "@/lib/admin-auth";
-import { deleteCloudinaryImage, } from "@/lib/cloudinary";
-import { unlink, } from "fs/promises";
-import path from "path";
 import { prisma } from "@/lib/prisma";
+import { deleteCloudinaryImage } from "@/lib/cloudinary";
+import { unlink } from "fs/promises";
+import path from "path";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+
 
 function createSlug(text: string) {
   return text
@@ -18,160 +19,329 @@ function createSlug(text: string) {
     .replace(/^-+|-+$/g, "");
 }
 
+
+
 export async function updateDestination(
   formData: FormData
 ) {
+
   await requireAdmin();
-  const id = Number(formData.get("id"));
 
-  const name = String(
-    formData.get("name") ?? ""
-  ).trim();
 
-  const country = String(
-    formData.get("country") ?? ""
-  ).trim();
+  const id =
+    Number(
+      formData.get("id")
+    );
 
-  const tag = String(
-    formData.get("tag") ?? ""
-  ).trim();
 
-  const description = String(
-    formData.get("description") ?? ""
-  ).trim();
+  const name =
+    String(
+      formData.get("name") ?? ""
+    ).trim();
+
+
+  const country =
+    String(
+      formData.get("country") ?? ""
+    ).trim();
+
+
+  const tag =
+    String(
+      formData.get("tag") ?? ""
+    ).trim();
+
+
+  const description =
+    String(
+      formData.get("description") ?? ""
+    ).trim();
+
 
   const published =
     formData.get("published") === "on";
 
-  if (!Number.isInteger(id)) {
-    throw new Error("Destination invalide.");
+
+
+  const imagesText =
+    String(
+      formData.get("images") ?? "[]"
+    );
+
+
+  let newImages: {
+    url: string;
+    publicId: string;
+  }[] = [];
+
+
+  try {
+
+    newImages =
+      JSON.parse(imagesText);
+
+  } catch {
+
+    throw new Error(
+      "Images invalides."
+    );
+
   }
 
-  if (!name || !country || !description) {
+
+
+  if (!Number.isInteger(id)) {
+
     throw new Error(
-      "Le nom, le pays et la description sont obligatoires."
+      "Destination invalide."
     );
+
   }
+
+
 
   const currentDestination =
     await prisma.destination.findUnique({
-      where: {
+
+      where:{
         id,
       },
+
+      include:{
+        images:true,
+      },
+
     });
 
+
+
   if (!currentDestination) {
+
     throw new Error(
       "Destination introuvable."
     );
+
   }
 
-  let slug = createSlug(name);
 
-  const destinationWithSameSlug =
+
+  let slug =
+    createSlug(name);
+
+
+
+  const sameSlug =
     await prisma.destination.findUnique({
-      where: {
+
+      where:{
         slug,
       },
+
     });
 
+
+
   if (
-    destinationWithSameSlug &&
-    destinationWithSameSlug.id !== id
+    sameSlug &&
+    sameSlug.id !== id
   ) {
-    slug = `${slug}-${id}`;
+
+    slug =
+      `${slug}-${id}`;
+
   }
 
+
+
   await prisma.destination.update({
-    where: {
+
+    where:{
       id,
     },
 
-    data: {
+    data:{
+
       name,
+
       country,
-      tag: tag || null,
+
+      tag:
+        tag || null,
+
       description,
+
       published,
+
       slug,
+
     },
+
   });
 
-  revalidatePath("/admin/destinations");
-  revalidatePath("/destinations");
+
+
+  /*
+    Ajout des nouvelles images
+    déjà uploadées sur Cloudinary
+  */
+
+  if (
+    newImages.length > 0
+  ) {
+
+
+    const lastImage =
+      await prisma.destinationImage.findFirst({
+
+        where:{
+          destinationId:id,
+        },
+
+        orderBy:{
+          sortOrder:"desc",
+        },
+
+      });
+
+
+
+    const startOrder =
+      lastImage
+        ? lastImage.sortOrder + 1
+        : 0;
+
+
+
+    await prisma.destinationImage.createMany({
+
+      data:
+
+        newImages.map(
+          (image,index)=>({
+
+            destinationId:id,
+
+            url:
+              image.url,
+
+            publicId:
+              image.publicId,
+
+            sortOrder:
+              startOrder + index,
+
+          })
+        ),
+
+    });
+
+
+
+    if (
+      !currentDestination.coverImage
+    ) {
+
+      await prisma.destination.update({
+
+        where:{
+          id,
+        },
+
+        data:{
+          coverImage:
+            newImages[0].url,
+        },
+
+      });
+
+    }
+
+  }
+
+
 
   revalidatePath(
-    `/destinations/${currentDestination.slug}`
+    "/admin/destinations"
   );
+
 
   revalidatePath(
-    `/destinations/${slug}`
+    `/admin/destinations/${id}/modifier`
   );
 
-  redirect("/admin/destinations");
+
+  revalidatePath(
+    "/destinations"
+  );
+
+
+  revalidatePath(
+    "/"
+  );
+
+
+  redirect(
+    "/admin/destinations"
+  );
+
 }
+
+
+
+
+
 export async function setDestinationCover(
   formData: FormData
 ) {
+
   await requireAdmin();
+
 
   const destinationId =
     Number(
-      formData.get(
-        "destinationId"
-      )
+      formData.get("destinationId")
     );
+
 
   const imageId =
     Number(
-      formData.get(
-        "imageId"
-      )
+      formData.get("imageId")
     );
 
-
-  if (
-    !Number.isInteger(
-      destinationId
-    ) ||
-    !Number.isInteger(
-      imageId
-    )
-  ) {
-    return;
-  }
 
 
   const image =
     await prisma.destinationImage.findFirst({
 
-      where: {
-        id: imageId,
+      where:{
+        id:imageId,
         destinationId,
       },
 
-      include: {
-        destination: true,
+      include:{
+        destination:true,
       },
 
     });
 
 
+
   if (!image) return;
+
 
 
   await prisma.destination.update({
 
-    where: {
-      id: destinationId,
+    where:{
+      id:destinationId,
     },
 
-    data: {
-      coverImage:
-        image.url,
+    data:{
+      coverImage:image.url,
     },
 
   });
+
 
 
   revalidatePath(
@@ -179,119 +349,93 @@ export async function setDestinationCover(
   );
 
   revalidatePath(
-    "/admin/destinations"
-  );
-
-  revalidatePath(
     "/destinations"
   );
 
   revalidatePath(
-    `/destinations/${image.destination.slug}`
+    "/"
   );
 
-  revalidatePath("/");
 }
+
+
+
+
+
 export async function deleteDestinationImage(
   formData: FormData
 ) {
+
   await requireAdmin();
+
 
   const destinationId =
     Number(
-      formData.get(
-        "destinationId"
-      )
+      formData.get("destinationId")
     );
+
 
   const imageId =
     Number(
-      formData.get(
-        "imageId"
-      )
+      formData.get("imageId")
     );
 
-
-  if (
-    !Number.isInteger(
-      destinationId
-    ) ||
-    !Number.isInteger(
-      imageId
-    )
-  ) {
-    return;
-  }
 
 
   const image =
     await prisma.destinationImage.findFirst({
 
-      where: {
-        id: imageId,
+      where:{
+        id:imageId,
         destinationId,
       },
 
-      include: {
-        destination: true,
+      include:{
+        destination:true,
       },
 
     });
+
 
 
   if (!image) return;
 
 
+
   const wasCover =
-    image.destination
-      .coverImage === image.url;
+    image.destination.coverImage === image.url;
 
-
-  let replacement:
-    { url: string } |
-    null = null;
 
 
   if (wasCover) {
 
-    replacement =
+    const replacement =
       await prisma.destinationImage.findFirst({
 
-        where: {
-
+        where:{
           destinationId,
-
-          id: {
-            not: imageId,
+          id:{
+            not:imageId,
           },
-
         },
 
-        orderBy: {
-          sortOrder: "asc",
-        },
-
-        select: {
-          url: true,
+        orderBy:{
+          sortOrder:"asc",
         },
 
       });
 
-  }
 
-
-  if (wasCover) {
 
     await prisma.destination.update({
 
-      where: {
-        id: destinationId,
+      where:{
+        id:destinationId,
       },
 
-      data: {
+      data:{
         coverImage:
-          replacement?.url ??
-          null,
+          replacement?.url ?? null,
       },
 
     });
@@ -299,35 +443,26 @@ export async function deleteDestinationImage(
   }
 
 
+
   await prisma.destinationImage.delete({
 
-    where: {
-      id: imageId,
+    where:{
+      id:imageId,
     },
 
   });
 
 
-  /*
-    SUPPRESSION CLOUDINARY
-  */
 
   if (image.publicId) {
 
     await deleteCloudinaryImage(
       image.publicId
-    ).catch(() => {});
+    ).catch(()=>{});
 
   }
-
-  /*
-    ANCIENNES PHOTOS LOCALES
-  */
-
   else if (
-    image.url.startsWith(
-      "/uploads/"
-    )
+    image.url.startsWith("/uploads/")
   ) {
 
     const relativePath =
@@ -336,19 +471,17 @@ export async function deleteDestinationImage(
         ""
       );
 
-    const physicalPath =
+
+    await unlink(
       path.join(
         process.cwd(),
         "public",
         relativePath
-      );
-
-
-    await unlink(
-      physicalPath
-    ).catch(() => {});
+      )
+    ).catch(()=>{});
 
   }
+
 
 
   revalidatePath(
@@ -356,16 +489,11 @@ export async function deleteDestinationImage(
   );
 
   revalidatePath(
-    "/admin/destinations"
-  );
-
-  revalidatePath(
     "/destinations"
   );
 
   revalidatePath(
-    `/destinations/${image.destination.slug}`
+    "/"
   );
 
-  revalidatePath("/");
 }

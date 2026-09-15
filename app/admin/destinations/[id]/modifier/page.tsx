@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { Images } from "lucide-react";
 
 import { prisma } from "@/lib/prisma";
+
+import AdminPhotoUpload from "@/components/admin/AdminPhotoUpload";
 import ExistingPhotoManager from "@/components/admin/ExistingPhotoManager";
 
 import {
@@ -48,9 +50,11 @@ export default async function EditDestinationPage({
     });
 
 
+
   if (!destination) {
     notFound();
   }
+
 
 
   return (
@@ -59,10 +63,6 @@ export default async function EditDestinationPage({
 
       <div className="new-destination-container">
 
-
-        {/* =====================================
-            HEADER
-        ===================================== */}
 
         <div className="new-destination-header">
 
@@ -85,18 +85,13 @@ export default async function EditDestinationPage({
 
 
           <p>
-            Modifiez les informations,
-            la visibilité et les photos
-            de cette destination.
+            Modifiez les informations et
+            ajoutez de nouvelles photos.
           </p>
 
         </div>
 
 
-
-        {/* =====================================
-            FORMULAIRE INFORMATIONS
-        ===================================== */}
 
         <form
           action={updateDestination}
@@ -112,11 +107,8 @@ export default async function EditDestinationPage({
 
 
 
-          {/* =====================================
-              01 - INFORMATIONS
-          ===================================== */}
-
           <section className="admin-form-section">
+
 
             <div className="admin-section-heading">
 
@@ -131,8 +123,7 @@ export default async function EditDestinationPage({
                 </h2>
 
                 <p>
-                  Modifiez les informations
-                  affichées sur le site.
+                  Informations affichées sur le site.
                 </p>
 
               </div>
@@ -143,8 +134,6 @@ export default async function EditDestinationPage({
 
             <div className="admin-fields-grid">
 
-
-              {/* NOM */}
 
               <label>
 
@@ -164,8 +153,6 @@ export default async function EditDestinationPage({
               </label>
 
 
-
-              {/* PAYS */}
 
               <label>
 
@@ -189,8 +176,6 @@ export default async function EditDestinationPage({
 
 
 
-            {/* CATEGORIE */}
-
             <label>
 
               <span>
@@ -203,14 +188,12 @@ export default async function EditDestinationPage({
                 defaultValue={
                   destination.tag ?? ""
                 }
-                placeholder="Culture, plage, shopping..."
               />
 
             </label>
 
 
 
-            {/* DESCRIPTION */}
 
             <label>
 
@@ -234,14 +217,52 @@ export default async function EditDestinationPage({
 
 
 
-          {/* =====================================
-              02 - PUBLICATION
-          ===================================== */}
+
+
+          <section className="admin-form-section">
+
+
+            <div className="admin-section-heading">
+
+              <span>
+                02
+              </span>
+
+
+              <div>
+
+                <h2>
+                  Ajouter des photos
+                </h2>
+
+                <p>
+                  Les nouvelles photos seront
+                  ajoutées à la galerie.
+                </p>
+
+              </div>
+
+
+            </div>
+
+
+
+            <AdminPhotoUpload
+              title="Ajouter de nouvelles photos"
+            />
+
+
+          </section>
+
+
+
+
 
           <section className="admin-publish-section">
 
 
             <label className="publish-checkbox">
+
 
               <input
                 type="checkbox"
@@ -252,20 +273,24 @@ export default async function EditDestinationPage({
               />
 
 
+
               <div>
 
                 <strong>
                   Destination publiée
                 </strong>
 
+
                 <span>
-                  Décochez pour masquer cette
-                  destination du site.
+                  Visible par les visiteurs.
                 </span>
+
 
               </div>
 
+
             </label>
+
 
 
 
@@ -273,35 +298,38 @@ export default async function EditDestinationPage({
               type="submit"
               className="publish-destination-btn"
             >
+
               Enregistrer les modifications
+
             </button>
 
 
           </section>
 
 
+
         </form>
 
 
 
-        {/* =====================================
-            03 - GESTION DES PHOTOS
-            IMPORTANT :
-            CETTE SECTION EST EN DEHORS DU FORM
-        ===================================== */}
+
 
         <section
           className="
-            admin-form-section
-            existing-photo-management-section
+          admin-form-section
+          existing-photo-management-section
           "
         >
 
+
+
           <div className="admin-section-heading">
 
+
             <span>
-              03
+              04
             </span>
+
 
 
             <div>
@@ -310,15 +338,18 @@ export default async function EditDestinationPage({
                 Galerie actuelle
               </h2>
 
+
               <p>
-                Choisissez la photo principale
-                ou supprimez individuellement
-                une photo incorrecte.
+                Gestion des photos existantes.
               </p>
+
 
             </div>
 
+
           </div>
+
+
 
 
 
@@ -326,7 +357,7 @@ export default async function EditDestinationPage({
 
             <div className="edit-no-images">
 
-              <Images size={30} />
+              <Images size={30}/>
 
               <p>
                 Aucune photo enregistrée.
@@ -334,7 +365,9 @@ export default async function EditDestinationPage({
 
             </div>
 
+
           ) : (
+
 
             <ExistingPhotoManager
 
@@ -342,25 +375,32 @@ export default async function EditDestinationPage({
                 destination.images
               }
 
+
               coverImage={
                 destination.coverImage
               }
+
 
               parentId={
                 destination.id
               }
 
+
               parentFieldName="destinationId"
+
 
               setCoverAction={
                 setDestinationCover
               }
 
+
               deletePhotoAction={
                 deleteDestinationImage
               }
 
+
             />
+
 
           )}
 
@@ -368,9 +408,11 @@ export default async function EditDestinationPage({
         </section>
 
 
+
       </div>
 
     </main>
 
   );
+
 }
