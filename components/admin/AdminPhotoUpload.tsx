@@ -2,7 +2,6 @@
 
 import {
   ChangeEvent,
-  useRef,
   useState,
 } from "react";
 
@@ -24,23 +23,33 @@ type PhotoItem = {
 
 type Props = {
   title?: string;
+
+  initialPhotos?: PhotoItem[];
 };
 
 
-export default function AdminPhotoUpload({
-  title = "Ajouter les photos",
-}: Props) {
 
-  const inputRef =
-    useRef<HTMLInputElement>(null);
+export default function AdminPhotoUpload({
+
+  title = "Ajouter les photos",
+
+  initialPhotos = [],
+
+}: Props) {
 
 
   const [photos, setPhotos] =
-    useState<PhotoItem[]>([]);
+    useState<PhotoItem[]>(
+      initialPhotos
+    );
 
 
   const [coverId, setCoverId] =
-    useState<string | null>(null);
+    useState<string | null>(
+      initialPhotos.length > 0
+        ? initialPhotos[0].id
+        : null
+    );
 
 
   const [uploading, setUploading] =
@@ -48,10 +57,14 @@ export default function AdminPhotoUpload({
 
 
 
-  async function uploadFile(file: File) {
+  async function uploadFile(
+    file: File
+  ) {
+
 
     const formData =
       new FormData();
+
 
     formData.append(
       "file",
@@ -63,8 +76,8 @@ export default function AdminPhotoUpload({
       await fetch(
         "/api/admin/upload",
         {
-          method: "POST",
-          body: formData,
+          method:"POST",
+          body:formData,
         }
       );
 
@@ -73,35 +86,42 @@ export default function AdminPhotoUpload({
       await response.json();
 
 
-    if (!response.ok) {
+    if(!response.ok){
+
       throw new Error(
         data.error ||
         "Upload impossible."
       );
+
     }
 
 
     return data as {
-      url: string;
-      publicId: string;
+      url:string;
+      publicId:string;
     };
+
   }
+
+
 
 
 
   async function handleImages(
     event: ChangeEvent<HTMLInputElement>
-  ) {
+  ){
 
-    const selectedFiles =
+
+    const files =
       Array.from(
         event.target.files ?? []
       );
 
 
+
     const validFiles =
-      selectedFiles.filter(
-        (file) =>
+      files.filter(
+        file =>
           [
             "image/jpeg",
             "image/png",
@@ -110,94 +130,104 @@ export default function AdminPhotoUpload({
       );
 
 
-    if (
-      validFiles.length !== selectedFiles.length
-    ) {
-
-      alert(
-        "Seuls les formats JPG, PNG et WEBP sont autorisés."
-      );
-
-    }
-
 
     const tooLarge =
       validFiles.find(
-        (file) =>
+        file =>
           file.size >
           4 * 1024 * 1024
       );
 
 
-    if (tooLarge) {
+
+    if(tooLarge){
 
       alert(
         `${tooLarge.name} dépasse 4 Mo.`
       );
 
-      event.target.value = "";
+      event.target.value="";
 
       return;
+
     }
 
 
 
-    if (
+    if(
       photos.length +
       validFiles.length >
       8
-    ) {
+    ){
 
       alert(
         "Maximum 8 photos."
       );
 
-      event.target.value = "";
+      event.target.value="";
 
       return;
+
     }
 
 
 
-    try {
+
+    try{
+
 
       setUploading(true);
 
 
+
       const uploaded =
         await Promise.all(
+
           validFiles.map(
-            (file) =>
+            file =>
               uploadFile(file)
           )
+
         );
+
 
 
       const newPhotos =
         uploaded.map(
-          (image) => ({
+          image => ({
+
             id:
-              `${image.publicId}-${Math.random()}`,
+              `${image.publicId}-${Date.now()}-${Math.random()}`,
 
             url:
               image.url,
 
             publicId:
               image.publicId,
+
           })
+
         );
 
 
+
       const combined = [
+
         ...photos,
+
         ...newPhotos,
+
       ];
 
 
-      setPhotos(combined);
+
+      setPhotos(
+        combined
+      );
 
 
-      if (!coverId && combined.length > 0) {
+
+      if(!coverId && combined.length){
 
         setCoverId(
           combined[0].id
@@ -206,69 +236,101 @@ export default function AdminPhotoUpload({
       }
 
 
-    } catch (error) {
+
+    }
+    catch(error){
+
 
       alert(
+
         error instanceof Error
-          ? error.message
-          : "Erreur upload"
+
+        ? error.message
+
+        : "Erreur upload"
+
       );
 
 
-    } finally {
+    }
+    finally{
+
 
       setUploading(false);
 
-      event.target.value = "";
+      event.target.value="";
 
     }
+
+
   }
+
+
 
 
 
   function removePhoto(
-    id: string
-  ) {
-
-    const remaining =
-      photos.filter(
-        (photo) =>
-          photo.id !== id
-      );
+    id:string
+  ){
 
 
     setPhotos(
-      remaining
+
+      photos.filter(
+        photo =>
+          photo.id !== id
+      )
+
     );
 
 
-    if (
+
+    if(
       coverId === id
-    ) {
+    ){
+
+      const remaining =
+        photos.filter(
+          photo =>
+            photo.id !== id
+        );
+
 
       setCoverId(
+
         remaining.length
-          ? remaining[0].id
-          : null
+
+        ? remaining[0].id
+
+        : null
+
       );
 
     }
 
+
   }
+
+
 
 
 
   const coverIndex =
     photos.findIndex(
-      (photo) =>
+
+      photo =>
         photo.id === coverId
+
     );
+
+
 
 
 
   return (
 
     <div className="admin-photo-upload">
+
 
 
       <label className="admin-upload-box">
@@ -281,28 +343,37 @@ export default function AdminPhotoUpload({
         </div>
 
 
+
         <strong>
+
           {uploading
-            ? "Upload en cours..."
-            : title}
+
+          ? "Upload en cours..."
+
+          : title}
+
         </strong>
 
 
+
         <span>
+
           Cliquez pour sélectionner vos photos
+
         </span>
 
 
+
         <small>
+
           JPG, PNG ou WEBP —
           maximum 8 photos
+
         </small>
 
 
 
         <input
-
-          ref={inputRef}
 
           type="file"
 
@@ -327,9 +398,11 @@ export default function AdminPhotoUpload({
 
         name="images"
 
-        value={JSON.stringify(
-          photos
-        )}
+        value={
+          JSON.stringify(
+            photos
+          )
+        }
 
         readOnly
 
@@ -345,8 +418,8 @@ export default function AdminPhotoUpload({
 
         value={
           coverIndex >= 0
-            ? coverIndex
-            : 0
+          ? coverIndex
+          : 0
         }
 
         readOnly
@@ -355,139 +428,153 @@ export default function AdminPhotoUpload({
 
 
 
+
+
       {photos.length > 0 && (
 
+
         <div className="admin-selected-images">
+
 
 
           <div className="admin-photo-toolbar">
 
             <Images size={18}/>
 
+
             <strong>
 
               {photos.length} photo
-              {photos.length > 1
-                ? "s"
-                : ""}
+              {photos.length > 1 ? "s":""}
 
             </strong>
 
+
           </div>
+
 
 
 
           <div className="admin-photo-preview-grid">
 
 
-            {photos.map(
-              (photo) => {
-
-                const isCover =
-                  photo.id === coverId;
+            {photos.map(photo => {
 
 
-                return (
-
-                  <div
-                    key={photo.id}
-                    className={
-                      isCover
-                        ? "admin-photo-preview selected-cover"
-                        : "admin-photo-preview"
-                    }
-                  >
-
-                    <img
-                      src={photo.url}
-                      alt="Photo hôtel"
-                    />
-
-
-                    {isCover && (
-
-                      <span className="cover-badge">
-
-                        <Check size={12}/>
-
-                        Photo principale
-
-                      </span>
-
-                    )}
+              const isCover =
+                photo.id === coverId;
 
 
 
-                    <div className="admin-photo-preview-actions">
+              return (
+
+                <div
+
+                  key={photo.id}
+
+                  className={
+                    isCover
+                    ? "admin-photo-preview selected-cover"
+                    : "admin-photo-preview"
+                  }
+
+                >
 
 
-                      {!isCover && (
+                  <img
 
-                        <button
+                    src={photo.url}
 
-                          type="button"
+                    alt="Photo"
 
-                          className="photo-set-cover"
-
-                          onClick={() =>
-                            setCoverId(
-                              photo.id
-                            )
-                          }
-
-                        >
-
-                          <Star size={14}/>
-
-                          Principale
-
-                        </button>
-
-                      )}
+                  />
 
 
+
+                  {isCover && (
+
+                    <span className="cover-badge">
+
+                      <Check size={12}/>
+
+                      Photo principale
+
+                    </span>
+
+                  )}
+
+
+
+
+                  <div className="admin-photo-preview-actions">
+
+
+
+                    {!isCover && (
 
                       <button
 
                         type="button"
 
-                        className="photo-remove"
-
                         onClick={() =>
-                          removePhoto(
-                            photo.id
-                          )
+                          setCoverId(photo.id)
                         }
 
                       >
 
-                        <Trash2 size={14}/>
+                        <Star size={14}/>
 
-                        Supprimer
+                        Principale
 
                       </button>
 
+                    )}
 
-                    </div>
+
+
+
+                    <button
+
+                      type="button"
+
+                      onClick={() =>
+                        removePhoto(photo.id)
+                      }
+
+                    >
+
+                      <Trash2 size={14}/>
+
+                      Supprimer
+
+                    </button>
+
 
 
                   </div>
 
-                );
 
-              }
+                </div>
 
-            )}
+
+              );
+
+
+            })}
+
 
           </div>
 
 
         </div>
 
+
       )}
+
 
 
     </div>
 
   );
+
 }
