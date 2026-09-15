@@ -318,11 +318,8 @@ export default async function AdminPromotionsPage() {
 
 
                   <Link
-
-                    href={`/admin/sejours/${promotion.id}/modifier`}
-
+                    href={`/admin/promotions/${promotion.id}/modifier`}
                     className="admin-destination-edit"
-
                   >
 
                     <Pencil size={16}/>
