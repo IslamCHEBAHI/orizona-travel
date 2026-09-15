@@ -2,11 +2,16 @@
 
 import { requireAdmin } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
+import {
+  deleteCloudinaryImage,
+} from "@/lib/cloudinary";
+
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
 
 function createSlug(text: string) {
+
   return text
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -14,6 +19,7 @@ function createSlug(text: string) {
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+
 }
 
 
@@ -26,9 +32,7 @@ export async function updatePromotion(
 
 
   const id =
-    Number(
-      formData.get("id")
-    );
+    Number(formData.get("id"));
 
 
   if (!Number.isInteger(id)) {
@@ -62,11 +66,11 @@ export async function updatePromotion(
 
 
 
+
   const title =
     String(
       formData.get("title") ?? ""
     ).trim();
-
 
 
   const description =
@@ -75,12 +79,10 @@ export async function updatePromotion(
     ).trim();
 
 
-
   const duration =
     String(
       formData.get("duration") ?? ""
     ).trim();
-
 
 
   const destinationId =
@@ -89,12 +91,10 @@ export async function updatePromotion(
     );
 
 
-
   const oldPrice =
     Number(
       formData.get("oldPrice")
     ) || null;
-
 
 
   const price =
@@ -103,15 +103,13 @@ export async function updatePromotion(
     );
 
 
-
-  const startDateValue =
+  const startDate =
     String(
       formData.get("startDate") ?? ""
     );
 
 
-
-  const endDateValue =
+  const endDate =
     String(
       formData.get("endDate") ?? ""
     );
@@ -122,9 +120,9 @@ export async function updatePromotion(
     formData.get("published") === "on";
 
 
-
   const featured =
     formData.get("featured") === "on";
+
 
 
 
@@ -135,22 +133,68 @@ export async function updatePromotion(
 
 
 
-  const newImages:{
-    url:string;
-    publicId:string;
-  }[] =
+  const currentImages:
+    {
+      url:string;
+      publicId:string;
+    }[] =
     JSON.parse(imagesText);
 
 
 
 
-  if(!title || !description){
 
-    throw new Error(
-      "Informations obligatoires manquantes."
+  const oldIds =
+    currentPromotion.images.map(
+      img => img.url
     );
 
+
+
+  const keptUrls =
+    currentImages.map(
+      img => img.url
+    );
+
+
+
+  const deletedImages =
+    currentPromotion.images.filter(
+      img =>
+        !keptUrls.includes(img.url)
+    );
+
+
+
+
+  for (const image of deletedImages) {
+
+    await prisma.promotionImage.delete({
+      where:{
+        id:image.id,
+      },
+    });
+
+
+    if(image.publicId){
+
+      await deleteCloudinaryImage(
+        image.publicId
+      ).catch(()=>{});
+
+    }
+
   }
+
+
+
+
+  const newImages =
+    currentImages.filter(
+      image =>
+        !oldIds.includes(image.url)
+    );
+
 
 
 
@@ -164,6 +208,7 @@ export async function updatePromotion(
     await prisma.promotion.findFirst({
 
       where:{
+
         slug,
 
         NOT:{
@@ -182,7 +227,6 @@ export async function updatePromotion(
       `${slug}-${id}`;
 
   }
-
 
 
 
@@ -206,13 +250,11 @@ export async function updatePromotion(
 
 
 
-
   await prisma.promotion.update({
 
     where:{
       id,
     },
-
 
     data:{
 
@@ -239,24 +281,27 @@ export async function updatePromotion(
 
 
       startDate:
-        startDateValue
-          ? new Date(
-              `${startDateValue}T00:00:00`
-            )
+        startDate
+          ? new Date(`${startDate}T00:00:00`)
           : null,
 
 
       endDate:
-        endDateValue
-          ? new Date(
-              `${endDateValue}T23:59:59`
-            )
+        endDate
+          ? new Date(`${endDate}T23:59:59`)
           : null,
 
 
       published,
 
       featured,
+
+
+
+      coverImage:
+        currentImages.length > 0
+          ? currentImages[0].url
+          : null,
 
 
 
@@ -274,12 +319,14 @@ export async function updatePromotion(
                 image.publicId,
 
               sortOrder:
-                currentPromotion.images.length + index,
+                index,
 
             })
+
           ),
 
       },
+
 
     },
 
