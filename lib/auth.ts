@@ -1,6 +1,7 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
+import { getServerSession } from "next-auth";
 
 import { prisma } from "@/lib/prisma";
 
@@ -92,3 +93,6 @@ export const authOptions: NextAuthOptions = {
 
   secret: process.env.NEXTAUTH_SECRET,
 };
+export async function getAuthSession() {
+  return await getServerSession(authOptions);
+}

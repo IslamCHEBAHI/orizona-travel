@@ -1,53 +1,34 @@
-import { getServerSession } from "next-auth";
-import { getToken } from "next-auth/jwt";
-import { headers, cookies } from "next/headers";
-import { authOptions } from "@/lib/auth";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { getToken } from "next-auth/jwt";
 
-/**
- * Vérification serveur admin robuste pour Vercel/Next.js Server Actions.
- * La session NextAuth peut être absente dans certaines Server Actions,
- * on utilise alors le JWT puis une vérification en base.
- */
 export async function requireAdmin() {
-  const session = await getServerSession(authOptions);
-  console.log("ADMIN SESSION:", session);
+  const cookieStore = await cookies();
 
-  let userId = session?.user?.id ? String(session.user.id) : null;
-  let email = session?.user?.email ?? null;
+  const token = await getToken({
+    req: {
+      cookies: Object.fromEntries(
+        cookieStore.getAll().map((c) => [c.name, c.value])
+      ),
+    } as any,
+    secret: process.env.NEXTAUTH_SECRET,
+  });
 
-  if (!userId) {
-    const token = await getToken({
-      req: {
-        headers: await headers(),
-        cookies: await cookies(),
-      } as any,
-      secret: process.env.NEXTAUTH_SECRET,
-    });
-    console.log("ADMIN TOKEN:", token);
+  console.log("ADMIN TOKEN:", token);
 
-    if (token?.id) {
-      userId = String(token.id);
-      email = token.email ?? null;
-    }
+  if (!token) {
+    throw new Error("Accès administrateur requis.");
   }
 
-  if (!userId && !email) {
-    console.log("NO SESSION");
-    console.log("SESSION:", session);
+  const email = token.email;
 
-    const allAdmins = await prisma.adminUser.findMany();
-    console.log("ADMINS:", allAdmins);
-
+  if (!email) {
     throw new Error("Accès administrateur requis.");
   }
 
   const admin = await prisma.adminUser.findFirst({
     where: {
-      OR: [
-        userId ? { id: Number(userId) } : undefined,
-        email ? { email: email.toLowerCase() } : undefined,
-      ].filter(Boolean) as any,
+      email: email.toLowerCase(),
       active: true,
     },
   });
