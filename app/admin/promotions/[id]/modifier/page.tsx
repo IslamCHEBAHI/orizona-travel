@@ -40,13 +40,15 @@ export default async function EditPromotionPage({
       },
 
       include: {
+
+        destination: true,
+
         images: {
           orderBy: {
             sortOrder: "asc",
           },
         },
 
-        destination: true,
       },
 
     });
@@ -56,6 +58,7 @@ export default async function EditPromotionPage({
   if (!promotion) {
     notFound();
   }
+
 
 
 
@@ -78,7 +81,6 @@ export default async function EditPromotionPage({
 
     <main className="new-destination-page">
 
-
       <div className="new-destination-container">
 
 
@@ -96,22 +98,21 @@ export default async function EditPromotionPage({
 
 
           <span className="admin-small-title">
-            MODIFICATION
+            MODIFICATION PROMOTION
           </span>
 
 
 
           <h1>
-            Modifier la promotion
+            Modifier {promotion.title}
           </h1>
 
 
 
           <p>
             Modifiez les informations,
-            les prix et les photos de l'offre.
+            les prix et la galerie photos.
           </p>
-
 
 
         </div>
@@ -159,7 +160,6 @@ export default async function EditPromotionPage({
                 <h2>
                   Informations générales
                 </h2>
-
 
               </div>
 
@@ -238,16 +238,13 @@ export default async function EditPromotionPage({
                       >
 
                         {destination.name}
-
                         {" — "}
-
                         {destination.country}
 
                       </option>
 
                     )
                   )}
-
 
 
                 </select>
@@ -321,7 +318,6 @@ export default async function EditPromotionPage({
 
 
 
-
           <section className="admin-form-section">
 
 
@@ -337,7 +333,6 @@ export default async function EditPromotionPage({
                 <h2>
                   Tarification
                 </h2>
-
 
               </div>
 
@@ -372,7 +367,6 @@ export default async function EditPromotionPage({
 
 
               </label>
-
 
 
 
@@ -429,12 +423,10 @@ export default async function EditPromotionPage({
                   Dates promotion
                 </h2>
 
-
               </div>
 
 
             </div>
-
 
 
 
@@ -469,9 +461,7 @@ export default async function EditPromotionPage({
 
                 />
 
-
               </label>
-
 
 
 
@@ -503,7 +493,6 @@ export default async function EditPromotionPage({
 
                 />
 
-
               </label>
 
 
@@ -534,6 +523,9 @@ export default async function EditPromotionPage({
                   Galerie photos
                 </h2>
 
+                <p>
+                  {promotion.images.length} photos enregistrées
+                </p>
 
               </div>
 
@@ -546,16 +538,19 @@ export default async function EditPromotionPage({
 
             <AdminPhotoUpload
 
-              title="Ajouter ou modifier les photos"
+              title="Ajouter des photos à la promotion"
+
 
               initialPhotos={
 
                 promotion.images.map(
                   (image)=>({
 
-                    id: String(image.id),
+                    id:
+                      String(image.id),
 
-                    url: image.url,
+                    url:
+                      image.url,
 
                     publicId:
                       image.publicId ?? "",
@@ -570,7 +565,9 @@ export default async function EditPromotionPage({
                 promotion.coverImage
               }
 
+
             />
+
 
 
           </section>
@@ -582,7 +579,6 @@ export default async function EditPromotionPage({
 
 
           <section className="admin-publish-section">
-
 
 
             <label className="publish-checkbox">
@@ -604,9 +600,8 @@ export default async function EditPromotionPage({
               <div>
 
                 <strong>
-                  Publier
+                  Promotion publiée
                 </strong>
-
 
               </div>
 
@@ -638,7 +633,6 @@ export default async function EditPromotionPage({
                 <strong>
                   Afficher sur l'accueil
                 </strong>
-
 
               </div>
 
@@ -672,7 +666,6 @@ export default async function EditPromotionPage({
         </form>
 
 
-
       </div>
 
 
@@ -680,4 +673,4 @@ export default async function EditPromotionPage({
 
   );
 
-}
+}           
