@@ -2,47 +2,62 @@
 
 import { requireAdmin } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
+
 import {
   deleteCloudinaryImage,
 } from "@/lib/cloudinary";
 
-import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
+import {
+  redirect,
+} from "next/navigation";
+
+import {
+  revalidatePath,
+} from "next/cache";
 
 
-function createSlug(text: string) {
+
+function createSlug(text:string){
 
   return text
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\u0300-\u036f]/g,"")
     .toLowerCase()
     .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+    .replace(/[^a-z0-9]+/g,"-")
+    .replace(/^-+|-+$/g,"");
 
 }
 
 
 
+
 export async function updatePromotion(
-  formData: FormData
-) {
+  formData:FormData
+){
 
   await requireAdmin();
 
 
-  const id = Number(
-    formData.get("id")
-  );
+
+  const id =
+    Number(
+      formData.get("id")
+    );
 
 
-  if (!Number.isInteger(id)) {
-    throw new Error("Promotion invalide.");
+  if(!Number.isInteger(id)){
+
+    throw new Error(
+      "Promotion invalide."
+    );
+
   }
 
 
 
-  const promotion =
+
+  const current =
     await prisma.promotion.findUnique({
 
       where:{
@@ -57,11 +72,15 @@ export async function updatePromotion(
 
 
 
-  if (!promotion) {
+  if(!current){
+
     throw new Error(
       "Promotion introuvable."
     );
+
   }
+
+
 
 
 
@@ -71,10 +90,12 @@ export async function updatePromotion(
     ).trim();
 
 
+
   const description =
     String(
       formData.get("description") ?? ""
     ).trim();
+
 
 
   const duration =
@@ -83,16 +104,12 @@ export async function updatePromotion(
     ).trim();
 
 
+
   const destinationId =
     Number(
       formData.get("destinationId")
     );
 
-
-  const oldPrice =
-    Number(
-      formData.get("oldPrice")
-    ) || null;
 
 
   const price =
@@ -102,63 +119,111 @@ export async function updatePromotion(
 
 
 
+  const oldPrice =
+    Number(
+      formData.get("oldPrice")
+    ) || null;
+
+
+
   const published =
-    formData.get("published") === "on";
+    formData.get("published")
+    === "on";
+
 
 
   const featured =
-    formData.get("featured") === "on";
+    formData.get("featured")
+    === "on";
+
+
+
+  const startDate =
+    String(
+      formData.get("startDate") ?? ""
+    );
+
+
+
+  const endDate =
+    String(
+      formData.get("endDate") ?? ""
+    );
+
+
 
 
 
   const images =
+
     JSON.parse(
+
       String(
         formData.get("images") ?? "[]"
       )
+
     ) as {
+
       url:string;
       publicId:string;
+
     }[];
 
 
 
+
+
+  const deletedImages =
+
+    JSON.parse(
+
+      String(
+        formData.get("deletedImages") ?? "[]"
+      )
+
+    ) as string[];
+
+
+
+
+
+
   /*
-    IMAGES SUPPRIMEES
+    SUPPRESSION DES IMAGES
   */
 
-  const remainingUrls =
-    images.map(
-      image => image.url
-    );
+
+  for(
+    const publicId
+    of deletedImages
+  ){
+
+
+    const image =
+      current.images.find(
+        item =>
+          item.publicId === publicId
+      );
 
 
 
-  const removedImages =
-    promotion.images.filter(
-      image =>
-        !remainingUrls.includes(
-          image.url
-        )
-    );
+    if(image){
 
 
+      await prisma.promotionImage.delete({
 
-  for (const image of removedImages) {
+        where:{
+          id:image.id,
+        },
 
-
-    await prisma.promotionImage.delete({
-      where:{
-        id:image.id,
-      },
-    });
+      });
 
 
-    if(image.publicId){
 
       await deleteCloudinaryImage(
-        image.publicId
+        publicId
       ).catch(()=>{});
+
 
     }
 
@@ -168,14 +233,17 @@ export async function updatePromotion(
 
 
 
+
+
   /*
-    NOUVELLES IMAGES UNIQUEMENT
+    AJOUT UNIQUEMENT DES NOUVELLES IMAGES
   */
 
 
   const existingUrls =
-    promotion.images.map(
-      image => image.url
+    current.images.map(
+      image =>
+        image.url
     );
 
 
@@ -187,6 +255,8 @@ export async function updatePromotion(
           image.url
         )
     );
+
+
 
 
 
@@ -224,7 +294,12 @@ export async function updatePromotion(
 
 
 
-  let discount:number|null = null;
+
+
+
+  let discount:number|null =
+    null;
+
 
 
   if(
@@ -234,13 +309,19 @@ export async function updatePromotion(
 
     discount =
       Math.round(
-        ((oldPrice-price)
-        /
-        oldPrice)
-        *100
+        (
+          (oldPrice-price)
+          /
+          oldPrice
+        )
+        *
+        100
       );
 
   }
+
+
+
 
 
 
@@ -270,11 +351,12 @@ export async function updatePromotion(
       destinationId,
 
 
-      oldPrice,
-
       price,
 
+      oldPrice,
+
       discount,
+
 
 
       published,
@@ -283,14 +365,38 @@ export async function updatePromotion(
 
 
 
+      startDate:
+        startDate
+        ? new Date(
+            `${startDate}T00:00:00`
+          )
+        : null,
+
+
+
+      endDate:
+        endDate
+        ? new Date(
+            `${endDate}T23:59:59`
+          )
+        : null,
+
+
+
       coverImage:
-        images.length > 0
-          ? images[0].url
-          : null,
+
+        String(
+          formData.get("coverImage")
+          ??
+          ""
+        )
+        ||
+        null,
 
 
 
       images:{
+
 
         create:
 
@@ -304,17 +410,26 @@ export async function updatePromotion(
                 image.publicId,
 
               sortOrder:
+
+                current.images.length
+                +
                 index,
 
             })
+
           ),
 
+
       },
+
 
 
     },
 
   });
+
+
+
 
 
 
@@ -335,12 +450,15 @@ export async function updatePromotion(
   );
 
 
-  revalidatePath("/");
+  revalidatePath(
+    "/"
+  );
 
 
 
   redirect(
     "/admin/promotions"
   );
+
 
 }

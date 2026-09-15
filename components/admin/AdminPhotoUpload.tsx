@@ -46,6 +46,11 @@ export default function AdminPhotoUpload({
     );
 
 
+  const [deletedPhotos, setDeletedPhotos] =
+    useState<string[]>([]);
+
+
+
   const [coverId, setCoverId] =
     useState<string | null>(() => {
 
@@ -56,9 +61,9 @@ export default function AdminPhotoUpload({
         );
 
 
-      return cover
-        ? cover.id
-        : initialPhotos[0]?.id ?? null;
+      return cover?.id ??
+        initialPhotos[0]?.id ??
+        null;
 
     });
 
@@ -88,8 +93,8 @@ export default function AdminPhotoUpload({
       await fetch(
         "/api/admin/upload",
         {
-          method: "POST",
-          body: formData,
+          method:"POST",
+          body:formData,
         }
       );
 
@@ -98,7 +103,8 @@ export default function AdminPhotoUpload({
       await response.json();
 
 
-    if (!response.ok) {
+
+    if(!response.ok){
 
       throw new Error(
         data.error ||
@@ -109,8 +115,8 @@ export default function AdminPhotoUpload({
 
 
     return data as {
-      url: string;
-      publicId: string;
+      url:string;
+      publicId:string;
     };
 
   }
@@ -119,8 +125,8 @@ export default function AdminPhotoUpload({
 
 
   async function handleImages(
-    event: ChangeEvent<HTMLInputElement>
-  ) {
+    event:ChangeEvent<HTMLInputElement>
+  ){
 
 
     const files =
@@ -129,88 +135,41 @@ export default function AdminPhotoUpload({
       );
 
 
-    const validFiles =
-      files.filter(
-        (file) =>
-          [
-            "image/jpeg",
-            "image/png",
-            "image/webp",
-          ].includes(file.type)
-      );
-
-
-    if (
-      validFiles.length !== files.length
-    ) {
-
-      alert(
-        "Seuls les formats JPG, PNG et WEBP sont autorisés."
-      );
-
-    }
-
-
-
-    const tooLarge =
-      validFiles.find(
-        (file) =>
-          file.size >
-          4 * 1024 * 1024
-      );
-
-
-    if (tooLarge) {
-
-      alert(
-        `${tooLarge.name} dépasse 4 Mo.`
-      );
-
-      event.target.value = "";
-
-      return;
-
-    }
-
-
-
-    if (
-      photos.length +
-      validFiles.length >
-      8
-    ) {
+    if(
+      photos.length + files.length > 8
+    ){
 
       alert(
         "Maximum 8 photos."
       );
 
-      event.target.value = "";
-
+      event.target.value="";
       return;
 
     }
 
 
 
-    try {
+    try{
+
 
       setUploading(true);
 
 
+
       const uploaded =
         await Promise.all(
-
-          validFiles.map(
-            (file) =>
+          files.map(
+            file =>
               uploadFile(file)
           )
-
         );
+
 
 
       const newPhotos =
         uploaded.map(
-          (image) => ({
+          image => ({
 
             id:
               `${image.publicId}-${Date.now()}-${Math.random()}`,
@@ -225,45 +184,47 @@ export default function AdminPhotoUpload({
         );
 
 
-      const combined = [
 
-        ...photos,
+      const updated =
+        [
+          ...photos,
+          ...newPhotos,
+        ];
 
-        ...newPhotos,
-
-      ];
 
 
       setPhotos(
-        combined
+        updated
       );
 
 
-      if (!coverId && combined.length > 0) {
+
+      if(!coverId){
 
         setCoverId(
-          combined[0].id
+          updated[0].id
         );
 
       }
 
 
-    } catch(error) {
+
+    }catch(error){
 
 
       alert(
         error instanceof Error
-          ? error.message
-          : "Erreur upload"
+        ? error.message
+        : "Erreur upload"
       );
 
 
-    } finally {
+    }finally{
 
 
       setUploading(false);
 
-      event.target.value = "";
+      event.target.value="";
 
     }
 
@@ -273,16 +234,41 @@ export default function AdminPhotoUpload({
 
 
 
+
   function removePhoto(
     id:string
-  ) {
+  ){
+
+
+    const photo =
+      photos.find(
+        item =>
+          item.id === id
+      );
+
+
+
+    if(
+      photo?.publicId
+    ){
+
+      setDeletedPhotos(
+        previous => [
+          ...previous,
+          photo.publicId,
+        ]
+      );
+
+    }
+
 
 
     const remaining =
       photos.filter(
-        (photo) =>
-          photo.id !== id
+        item =>
+          item.id !== id
       );
+
 
 
     setPhotos(
@@ -290,15 +276,17 @@ export default function AdminPhotoUpload({
     );
 
 
-    if (
+
+    if(
       coverId === id
-    ) {
+    ){
 
       setCoverId(
         remaining[0]?.id ?? null
       );
 
     }
+
 
   }
 
@@ -308,9 +296,11 @@ export default function AdminPhotoUpload({
 
   const coverIndex =
     photos.findIndex(
-      (photo) =>
+      photo =>
         photo.id === coverId
     );
+
+
 
 
 
@@ -329,6 +319,7 @@ export default function AdminPhotoUpload({
         </div>
 
 
+
         <strong>
 
           {
@@ -340,9 +331,11 @@ export default function AdminPhotoUpload({
         </strong>
 
 
+
         <span>
           Cliquez pour sélectionner vos photos
         </span>
+
 
 
         <small>
@@ -379,7 +372,12 @@ export default function AdminPhotoUpload({
 
         value={
           JSON.stringify(
-            photos
+            photos.map(
+              photo => ({
+                url:photo.url,
+                publicId:photo.publicId,
+              })
+            )
           )
         }
 
@@ -393,12 +391,28 @@ export default function AdminPhotoUpload({
 
         type="hidden"
 
-        name="coverIndex"
+        name="deletedImages"
 
         value={
-          coverIndex >= 0
-          ? coverIndex
-          : 0
+          JSON.stringify(
+            deletedPhotos
+          )
+        }
+
+        readOnly
+
+      />
+
+
+
+      <input
+
+        type="hidden"
+
+        name="coverImage"
+
+        value={
+          photos[coverIndex]?.url ?? ""
         }
 
         readOnly
@@ -409,7 +423,6 @@ export default function AdminPhotoUpload({
 
 
       {photos.length > 0 && (
-
 
         <div className="admin-selected-images">
 
@@ -434,111 +447,108 @@ export default function AdminPhotoUpload({
           <div className="admin-photo-preview-grid">
 
 
-            {photos.map(
-              (photo)=>{
-
-                const isCover =
-                  photo.id === coverId;
+            {photos.map(photo => {
 
 
-                return (
-
-                  <div
-
-                    key={photo.id}
-
-                    className={
-                      isCover
-                      ? "admin-photo-preview selected-cover"
-                      : "admin-photo-preview"
-                    }
-
-                  >
-
-
-                    <img
-
-                      src={photo.url}
-
-                      alt="Photo"
-
-                    />
+              const isCover =
+                photo.id === coverId;
 
 
 
-                    {isCover && (
+              return (
 
-                      <span className="cover-badge">
+                <div
 
-                        <Check size={12}/>
+                  key={photo.id}
 
-                        Photo principale
+                  className={
+                    isCover
+                    ? "admin-photo-preview selected-cover"
+                    : "admin-photo-preview"
+                  }
 
-                      </span>
-
-                    )}
-
-
-
-
-                    <div className="admin-photo-preview-actions">
+                >
 
 
-                      {!isCover && (
+                  <img
 
-                        <button
+                    src={photo.url}
 
-                          type="button"
+                    alt="Photo"
 
-                          onClick={() =>
-                            setCoverId(
-                              photo.id
-                            )
-                          }
-
-                        >
-
-                          <Star size={14}/>
-
-                          Principale
-
-                        </button>
-
-                      )}
+                  />
 
 
+
+                  {isCover && (
+
+                    <span className="cover-badge">
+
+                      <Check size={12}/>
+
+                      Photo principale
+
+                    </span>
+
+                  )}
+
+
+
+                  <div className="admin-photo-preview-actions">
+
+
+                    {!isCover && (
 
                       <button
 
                         type="button"
 
                         onClick={() =>
-                          removePhoto(
+                          setCoverId(
                             photo.id
                           )
                         }
 
                       >
 
-                        <Trash2 size={14}/>
+                        <Star size={14}/>
 
-                        Supprimer
+                        Principale
 
                       </button>
 
+                    )}
 
 
-                    </div>
 
+                    <button
+
+                      type="button"
+
+                      onClick={() =>
+                        removePhoto(
+                          photo.id
+                        )
+                      }
+
+                    >
+
+                      <Trash2 size={14}/>
+
+                      Supprimer
+
+                    </button>
 
 
                   </div>
 
-                );
 
-              }
+                </div>
 
-            )}
+              );
+
+
+            })}
 
 
           </div>
@@ -546,9 +556,7 @@ export default function AdminPhotoUpload({
 
         </div>
 
-
       )}
-
 
 
     </div>
